@@ -1,4 +1,4 @@
-package main
+package byondtopic
 
 import (
 	"bytes"
@@ -123,10 +123,4 @@ func SendTopic(addr, s string) (string, error) {
 	if err != nil { return "", err }
 
 	return r, nil
-}
-
-func main() {
-	s, err := SendTopic(":36621", "?test")
-	if err != nil { panic(err) }
-	fmt.Println(s)
 }
