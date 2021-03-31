@@ -2,9 +2,8 @@ package byondtopic
 
 import (
 	"bytes"
-	// "encoding/binary"
-	"fmt"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 )
@@ -20,7 +19,7 @@ var (
 type Topic struct {
 	buf *bytes.Buffer
 	raw []byte
-	c bool
+	c   bool
 }
 
 func NewTopic() *Topic {
@@ -50,12 +49,16 @@ func (t *Topic) Close() error {
 	l := uint16(len(t.raw) + 6)
 
 	// shift the highest 8 bits, mask, then write
-	_, err := t.buf.Write([]byte{byte((l >> 8) & 255)})
-	if err != nil { return err }
+	_, err := t.buf.Write([]byte{byte((l >> 8) & 0xFF)})
+	if err != nil {
+		return err
+	}
 
 	// mask the highest 8 bits, write it
-	_, err = t.buf.Write([]byte{byte(l & 255)})
-	if err != nil { return err }
+	_, err = t.buf.Write([]byte{byte(l & 0xFF)})
+	if err != nil {
+		return err
+	}
 
 	t.buf.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
 	t.buf.Write(t.raw)
@@ -71,7 +74,9 @@ func readTopic(r io.Reader) (string, error) {
 	head := make([]byte, 5)
 	_, err := r.Read(head)
 
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 
 	// if it doesn't have the correct magic number,
 	// or isn't an ASCII string,
@@ -95,7 +100,9 @@ func readTopic(r io.Reader) (string, error) {
 	m := make([]byte, l)
 
 	_, err = r.Read(m)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 
 	return string(m), nil
 }
@@ -108,19 +115,25 @@ func SendTopic(addr, s string) (string, error) {
 	c, err := net.DialTCP("tcp", nil, a)
 
 	defer c.Close()
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 
 	t := NewTopic()
 	t.Write([]byte("?" + s))
 	t.Close()
 
 	b, err := io.ReadAll(t)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 
 	go c.Write(b)
 
 	r, err := readTopic(c)
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 
 	return r, nil
 }
