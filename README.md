@@ -17,7 +17,8 @@ Using
 import "github.com/vulppine/byond-topic-go"
 
 func main() {
-    byondtopic.SendTopic("[dream daemon address:port]", "[topic]")
+    r := byondtopic.SendTopic("[dream daemon address:port]", "[topic]")
+    // do something with r
 }
 ```
 

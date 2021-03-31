@@ -2,7 +2,7 @@ package byondtopic
 
 import (
 	"bytes"
-	"encoding/binary"
+	// "encoding/binary"
 	"fmt"
 	"errors"
 	"io"
@@ -49,17 +49,17 @@ func (t *Topic) Close() error {
 
 	l := uint16(len(t.raw) + 6)
 
-	// mask the highest 8 bits, write it
-	err := binary.Write(t.buf, binary.BigEndian, l & 255)
-	if err != nil { return err }
-
 	// shift the highest 8 bits, mask, then write
-	err = binary.Write(t.buf, binary.BigEndian, (l >> 8) & 255)
+	_, err := t.buf.Write([]byte{byte((l >> 8) & 255)})
 	if err != nil { return err }
 
-	t.buf.WriteString("\x00\x00\x00\x00\x00")
+	// mask the highest 8 bits, write it
+	_, err = t.buf.Write([]byte{byte(l & 255)})
+	if err != nil { return err }
+
+	t.buf.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
 	t.buf.Write(t.raw)
-	t.buf.WriteString("\x00")
+	t.buf.Write([]byte{0x00})
 	t.c = true
 
 	return nil
@@ -111,7 +111,7 @@ func SendTopic(addr, s string) (string, error) {
 	if err != nil { return "", err }
 
 	t := NewTopic()
-	t.Write([]byte(s))
+	t.Write([]byte("?" + s))
 	t.Close()
 
 	b, err := io.ReadAll(t)
