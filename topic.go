@@ -2,18 +2,17 @@ package byondtopic
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 )
 
-const (
-	BYONDMagicNumber = "\x00\x83"
-)
-
 var (
-	InvalidTopic = errors.New("recieved message is not valid")
+	// BYONDMagicNumber is the number that precedes every BYOND topic string.
+	BYONDMagicNumber = []byte{0x00, 0x83}
+	InvalidTopic     = errors.New("recieved message is not valid")
 )
 
 type Topic struct {
@@ -29,6 +28,8 @@ func NewTopic() *Topic {
 	return t
 }
 
+// Read reads out a topic into byte slice p. It will always return an error
+// if the topic was not closed before it is read.
 func (t *Topic) Read(p []byte) (int, error) {
 	if !t.c {
 		return 0, fmt.Errorf("topic was not closed before read")
@@ -37,33 +38,35 @@ func (t *Topic) Read(p []byte) (int, error) {
 	return t.buf.Read(p)
 }
 
+// Write writes byte slice p into the topic. It will always return an error
+// if the topic is closed beforehand.
 func (t *Topic) Write(p []byte) (int, error) {
+	if t.c {
+		return 0, fmt.Errorf("topic is closed")
+	}
+
 	t.raw = append(t.raw, p...)
 
 	return len(p), nil
 }
 
+// Close finalizes the topic, and ensures that it is a valid BYOND topic string
+// to send. It will return an error if the topic's length is bigger than
+// the maximum size of a 16 bit integer.
 func (t *Topic) Close() error {
-	t.buf.WriteString(BYONDMagicNumber)
-
-	l := uint16(len(t.raw) + 6)
-
-	// shift the highest 8 bits, mask, then write
-	_, err := t.buf.Write([]byte{byte((l >> 8) & 0xFF)})
-	if err != nil {
-		return err
+	if len(t.raw) > (1 << 16) {
+		return fmt.Errorf("topic is too big")
 	}
 
-	// mask the highest 8 bits, write it
-	_, err = t.buf.Write([]byte{byte(l & 0xFF)})
-	if err != nil {
-		return err
-	}
+	t.buf.Write(BYONDMagicNumber)
+	b := make([]byte, 2)                                // make our uint16 buffer
+	binary.BigEndian.PutUint16(b, uint16(len(t.raw)+6)) // put our topic's length into our buffer (big-endian 8-bit byte pair)
+	t.buf.Write(b)                                      // write it
 
-	t.buf.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00})
-	t.buf.Write(t.raw)
-	t.buf.Write([]byte{0x00})
-	t.c = true
+	t.buf.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00}) // write the spacing
+	t.buf.Write(t.raw)                                // write the actual topic
+	t.buf.Write([]byte{0x00})                         // write the end of the topic string (null termination)
+	t.c = true                                        // declare it to be closed
 
 	return nil
 }
@@ -81,7 +84,7 @@ func readTopic(r io.Reader) (string, error) {
 	// if it doesn't have the correct magic number,
 	// or isn't an ASCII string,
 	// return InvalidTopic
-	if head[0] != 0x00 || head[1] != 0x83 || head[4] != 0x06 {
+	if bytes.Compare(BYONDMagicNumber, head[:2]) != 0 || head[4] != 0x06 {
 		return "", InvalidTopic
 	}
 
