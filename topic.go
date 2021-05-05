@@ -94,10 +94,10 @@ func readTopic(r io.Reader) (string, error) {
 		l = uint16(head[3])
 	} else {
 		// convert the first half to a uint16, shift it left
-		l = uint16(head[2]) << 0xFF
+		l = uint16(head[2]) << 0xF
 
-		// convert the second half, perform binary AND
-		l = l & uint16(head[3])
+		// convert the second half, perform binary OR
+		l = l | uint16(head[3])
 	}
 
 	m := make([]byte, l)
