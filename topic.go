@@ -93,11 +93,8 @@ func readTopic(r io.Reader) (string, error) {
 		// it'll just be the fourth byte as a uint16
 		l = uint16(head[3])
 	} else {
-		// convert the first half to a uint16, shift it left
-		l = uint16(head[2]) << 0xF
-
-		// convert the second half, perform binary OR
-		l = l | uint16(head[3])
+		// use the BigEndian conversion
+		l = binary.BigEndian.Uint16(head[2:4])
 	}
 
 	m := make([]byte, l)
